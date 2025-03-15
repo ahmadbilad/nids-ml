@@ -1,0 +1,70 @@
+:root {
+  color-scheme: light;
+}
+
+body {
+  min-height: 100vh;
+  background: #f7f9fc;
+  color: #172033;
+}
+
+main {
+  min-height: calc(100vh - 120px);
+}
+
+.hero-panel {
+  background: linear-gradient(120deg, #eef4ff, #f8fbff);
+  border: 1px solid #dce8fb;
+}
+
+.hero-panel h1 {
+  max-width: 800px;
+}
+
+.form-label {
+  font-weight: 600;
+}
+
+.metric-card {
+  padding: 1.5rem;
+  border: 1px solid #e5eaf2;
+  border-radius: 1rem;
+  background: #fff;
+  box-shadow: 0 0.25rem 1rem rgb(23 32 51 / 5%);
+}
+
+.chart-container {
+  position: relative;
+  min-height: 320px;
+}
+
+.status-icon {
+  display: grid;
+  width: 4rem;
+  height: 4rem;
+  place-items: center;
+  border-radius: 50%;
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.status-danger {
+  background: #fce8e8;
+  color: #dc3545;
+}
+
+.status-success {
+  background: #e4f4eb;
+  color: #198754;
+}
+
+.confidence-panel {
+  background: #f5f7fa;
+  text-align: left;
+}
+
+@media (max-width: 575.98px) {
+  .chart-container {
+    min-height: 260px;
+  }
+}

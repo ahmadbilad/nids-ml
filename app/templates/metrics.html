@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}Model metrics{% endblock %}
+{% block head %}
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+{% endblock %}
+{% block content %}
+<div class="mb-4">
+  <p class="text-uppercase text-primary fw-semibold small mb-2">Evaluation</p>
+  <h1 class="display-6 fw-bold">Model performance</h1>
+  <p class="lead text-secondary">Random Forest evaluation on the NSL-KDD test split.</p>
+</div>
+{% if error %}
+  <div class="alert alert-danger" role="alert">{{ error }}</div>
+{% else %}
+  <section class="row g-3 mb-4">
+    <div class="col-12 col-md-6">
+      <div class="metric-card h-100">
+        <p class="text-secondary mb-1">Accuracy</p>
+        <p class="display-6 fw-bold mb-0">{{ "%.1f"|format(report.accuracy * 100) }}%</p>
+      </div>
+    </div>
+    <div class="col-12 col-md-6">
+      <div class="metric-card h-100">
+        <p class="text-secondary mb-1">F1-score</p>
+        <p class="display-6 fw-bold mb-0">{{ "%.3f"|format(report.f1) }}</p>
+      </div>
+    </div>
+  </section>
+  <section class="card border-0 shadow-sm">
+    <div class="card-body p-4">
+      <h2 class="h4">Confusion matrix</h2>
+      <p class="text-secondary">Actual labels by predicted labels.</p>
+      <div class="chart-container">
+        <canvas id="confusion-chart" role="img" aria-label="Confusion matrix chart comparing actual normal and intrusion traffic against model predictions"></canvas>
+      </div>
+      <div class="table-responsive mt-4">
+        <table class="table table-bordered text-center align-middle mb-0">
+          <caption class="caption-top">Counts by actual and predicted class</caption>
+          <thead class="table-light">
+            <tr><th scope="col">Actual \ Predicted</th><th scope="col">Normal</th><th scope="col">Intrusion</th></tr>
+          </thead>
+          <tbody>
+            <tr><th scope="row">Normal</th><td>{{ report.confusion_matrix[0][0] }}</td><td>{{ report.confusion_matrix[0][1] }}</td></tr>
+            <tr><th scope="row">Intrusion</th><td>{{ report.confusion_matrix[1][0] }}</td><td>{{ report.confusion_matrix[1][1] }}</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+{% if report %}
+<script>
+  const confusionData = {{ chart_data|tojson }};
+  new Chart(document.getElementById("confusion-chart"), {
+    type: "bar",
+    data: {
+      labels: confusionData.labels,
+      datasets: [
+        { label: "Predicted normal", data: confusionData.matrix.map((row) => row[0]), backgroundColor: "#198754" },
+        { label: "Predicted intrusion", data: confusionData.matrix.map((row) => row[1]), backgroundColor: "#dc3545" }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        x: { title: { display: true, text: "Actual class" } },
+        y: { beginAtZero: true, title: { display: true, text: "Number of records" } }
+      },
+      plugins: { legend: { position: "bottom" } }
+    }
+  });
+</script>
+{% endif %}
+{% endblock %}

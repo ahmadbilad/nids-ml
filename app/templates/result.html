@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Prediction result{% endblock %}
+{% block content %}
+<section class="row justify-content-center">
+  <div class="col-12 col-lg-8">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body text-center p-4 p-lg-5">
+        <p class="text-uppercase text-secondary fw-semibold small mb-2">Traffic analysis result</p>
+        {% if result.class_id == 1 %}
+          <div class="status-icon status-danger mx-auto mb-3" aria-hidden="true">!</div>
+          <h1 class="h2 text-danger">Potential intrusion detected</h1>
+          <p class="text-secondary">The submitted connection was classified as <strong>intrusion</strong>.</p>
+        {% else %}
+          <div class="status-icon status-success mx-auto mb-3" aria-hidden="true">✓</div>
+          <h1 class="h2 text-success">Normal traffic</h1>
+          <p class="text-secondary">The submitted connection was classified as <strong>normal</strong>.</p>
+        {% endif %}
+        <div class="confidence-panel rounded-3 p-3 my-4">
+          <div class="d-flex justify-content-between mb-2">
+            <span class="fw-semibold">Prediction confidence</span>
+            <span>{{ "%.1f"|format(result.confidence * 100) }}%</span>
+          </div>
+          <div class="progress" role="progressbar" aria-label="Prediction confidence" aria-valuenow="{{ (result.confidence * 100)|round|int }}" aria-valuemin="0" aria-valuemax="100">
+            <div class="progress-bar" style="width: {{ result.confidence * 100 }}%"></div>
+          </div>
+        </div>
+        <a class="btn btn-primary" href="{{ url_for('main.index') }}">Analyze another record</a>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

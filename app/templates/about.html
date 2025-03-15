@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}About{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-12 col-lg-9">
+    <p class="text-uppercase text-primary fw-semibold small mb-2">About the project</p>
+    <h1 class="display-6 fw-bold">Network Intrusion Detection System</h1>
+    <p class="lead text-secondary">NIDS-ML applies supervised machine learning to network connection records and flags potential intrusions.</p>
+    <section class="card border-0 shadow-sm my-4">
+      <div class="card-body p-4 p-lg-5">
+        <h2 class="h4">Dataset and prediction</h2>
+        <p>The application is trained on the NSL-KDD training set and evaluated on its held-out test set. It classifies each connection as <strong>normal</strong> or <strong>intrusion</strong>.</p>
+        <p>Protocol, service, and connection-state features are one-hot encoded. Numeric connection features are standardized. The saved Random Forest model returns a class and its estimated probability.</p>
+        <h2 class="h4 mt-4">Architecture</h2>
+        <ol class="mb-0">
+          <li><strong>Presentation:</strong> responsive Bootstrap 5 pages rendered with Flask and Jinja.</li>
+          <li><strong>Application:</strong> Flask routes validate form data, run predictions, and render evaluation results.</li>
+          <li><strong>Machine learning:</strong> scikit-learn estimator, categorical encoder, and numeric scaler loaded from <code>model/</code> at startup.</li>
+          <li><strong>Evaluation:</strong> test-split accuracy, F1-score, and confusion matrix visualized with Chart.js.</li>
+        </ol>
+      </div>
+    </section>
+    <p class="small text-secondary">This model is a decision-support tool; predictions should not be treated as a substitute for security monitoring and analyst review.</p>
+  </div>
+</div>
+{% endblock %}
