@@ -178,15 +178,12 @@ def explain_prediction(features, artifacts, top_k=3):
     model = artifacts["model"]
     encoder = artifacts["encoder"]
 
-    # Match exact feature column ordering: encoded categoricals followed by numeric features
     encoded_feature_names = list(encoder.get_feature_names_out(CATEGORICAL_COLUMNS))
     all_feature_names = encoded_feature_names + NUMERIC_COLUMNS
 
     explainer = shap.TreeExplainer(model)
-    # Convert sparse matrix to dense array for TreeExplainer compatibility
     shap_values = explainer.shap_values(transformed.toarray())
 
-    # Extract Class 1 (intrusion) contributions
     if isinstance(shap_values, list):
         instance_shap = shap_values[1][0]
     elif len(shap_values.shape) == 3:
@@ -194,7 +191,6 @@ def explain_prediction(features, artifacts, top_k=3):
     else:
         instance_shap = shap_values[0]
 
-    # Rank features by contribution magnitude
     top_indices = np.argsort(np.abs(instance_shap))[::-1][:top_k]
 
     explanations = []
@@ -211,6 +207,57 @@ def explain_prediction(features, artifacts, top_k=3):
         })
 
     return explanations
+
+
+def predict_batch_dataframe(df, artifacts, max_rows=500):
+    """Validate, preprocess, and predict a batch DataFrame."""
+    if len(df) > max_rows:
+        df = df.iloc[:max_rows].copy()
+
+    missing_cols = set(FEATURE_COLUMNS).difference(df.columns)
+    if missing_cols:
+        raise ValueError(
+            f"Missing required columns in CSV: {', '.join(sorted(missing_cols))}"
+        )
+
+    features = df[FEATURE_COLUMNS].copy()
+    for col in NUMERIC_COLUMNS:
+        features[col] = pd.to_numeric(features[col], errors="coerce").fillna(0.0)
+    for col in CATEGORICAL_COLUMNS:
+        features[col] = features[col].astype(str).str.strip()
+
+    predictions, confidences = predict_with_artifacts(features, artifacts)
+
+    total_samples = len(predictions)
+    intrusions = int(np.sum(predictions == 1))
+    normal = int(total_samples - intrusions)
+
+    results = []
+    for i in range(total_samples):
+        results.append({
+            "index": i + 1,
+            "prediction": CLASS_NAMES[int(predictions[i])],
+            "is_intrusion": bool(predictions[i] == 1),
+            "confidence": round(float(confidences[i]) * 100, 1),
+            "protocol": str(features.iloc[i]["protocol_type"]),
+            "service": str(features.iloc[i]["service"]),
+            "flag": str(features.iloc[i]["flag"]),
+            "src_bytes": int(features.iloc[i]["src_bytes"]),
+            "dst_bytes": int(features.iloc[i]["dst_bytes"]),
+        })
+
+    summary = {
+        "total": total_samples,
+        "intrusions": intrusions,
+        "normal": normal,
+        "intrusion_rate": (
+            round((intrusions / total_samples) * 100, 1)
+            if total_samples > 0
+            else 0.0
+        ),
+    }
+
+    return summary, results
 
 
 def evaluate_saved_model(test_path=DATA_DIR / "KDDTest+.txt", model_dir=MODEL_DIR):

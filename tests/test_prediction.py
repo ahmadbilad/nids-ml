@@ -1,16 +1,37 @@
 """Tests for loading the trained NIDS artifacts and predicting traffic samples."""
 
+import io
+from pathlib import Path
+
 import numpy as np
+import pandas as pd
 import pytest
 
+from app import create_app
 from app.model_utils import (
     DATA_DIR,
+    FEATURE_COLUMNS,
     MODEL_DIR,
     explain_prediction,
     load_artifacts,
     load_dataset,
     predict,
+    predict_batch_dataframe,
 )
+
+
+@pytest.fixture(scope="module")
+def app():
+    """Create and configure an application instance for testing."""
+    test_app = create_app()
+    test_app.config.update({"TESTING": True})
+    return test_app
+
+
+@pytest.fixture(scope="module")
+def client(app):
+    """Test client for issuing HTTP requests."""
+    return app.test_client()
 
 
 @pytest.fixture(scope="module")
@@ -71,3 +92,27 @@ def test_explain_prediction_returns_top_features(test_records):
         assert "direction" in item
         assert isinstance(item["impact"], float)
         assert item["direction"] in ("Pushed towards Intrusion", "Pushed towards Normal")
+
+
+def test_download_sample_csv_endpoint(client):
+    """Verify sample CSV download endpoint returns valid CSV file."""
+    response = client.get("/download-sample-csv")
+    assert response.status_code == 200
+    assert response.mimetype == "text/csv"
+    assert "attachment; filename=nids_sample_batch.csv" in response.headers.get("Content-Disposition", "")
+    assert b"duration,protocol_type,service" in response.data
+
+
+def test_predict_batch_dataframe_validation(app):
+    """Verify batch prediction helper validates columns and returns summary."""
+    artifacts = app.extensions["nids_artifacts"]
+
+    # Construct a valid dummy batch containing all expected features
+    dummy_row = {col: 0.0 for col in FEATURE_COLUMNS}
+    dummy_row.update({"protocol_type": "tcp", "service": "http", "flag": "SF"})
+    df = pd.DataFrame([dummy_row, dummy_row])
+
+    summary, records = predict_batch_dataframe(df, artifacts)
+    assert summary["total"] == 2
+    assert len(records) == 2
+    assert "is_intrusion" in records[0]

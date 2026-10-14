@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}Batch Analysis Results{% endblock %}
+{% block content %}
+<section class="container py-4">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h1 class="h3 fw-bold mb-1">Batch Flow Analysis</h1>
+      <p class="text-secondary small mb-0">Automated classification across multi-connection network logs</p>
+    </div>
+    <a class="btn btn-outline-secondary" href="{{ url_for('main.index') }}">Analyze More Logs</a>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-md-3">
+      <div class="card border-0 shadow-sm p-3">
+        <span class="text-secondary small fw-semibold text-uppercase">Total Flows</span>
+        <span class="h3 fw-bold my-1">{{ summary.total }}</span>
+        <span class="small text-muted">Parsed connection records</span>
+      </div>
+    </div>
+    <div class="col-12 col-md-3">
+      <div class="card border-0 shadow-sm p-3">
+        <span class="text-secondary small fw-semibold text-uppercase">Normal Flows</span>
+        <span class="h3 fw-bold my-1 text-success">{{ summary.normal }}</span>
+        <span class="small text-muted">Benign network activity</span>
+      </div>
+    </div>
+    <div class="col-12 col-md-3">
+      <div class="card border-0 shadow-sm p-3">
+        <span class="text-secondary small fw-semibold text-uppercase">Threats Detected</span>
+        <span class="h3 fw-bold my-1 text-danger">{{ summary.intrusions }}</span>
+        <span class="small text-muted">Malicious / anomalous flows</span>
+      </div>
+    </div>
+    <div class="col-12 col-md-3">
+      <div class="card border-0 shadow-sm p-3">
+        <span class="text-secondary small fw-semibold text-uppercase">Threat Rate</span>
+        <span class="h3 fw-bold my-1 text-warning">{{ summary.intrusion_rate }}%</span>
+        <span class="small text-muted">Attack concentration</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-header bg-white py-3">
+      <h2 class="h5 mb-0 fw-bold">Connection Level Diagnostics</h2>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>#</th>
+            <th>Verdict</th>
+            <th>Confidence</th>
+            <th>Protocol</th>
+            <th>Service</th>
+            <th>Flag</th>
+            <th>Src Bytes</th>
+            <th>Dst Bytes</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in records %}
+          <tr>
+            <td class="text-muted small">{{ row.index }}</td>
+            <td>
+              {% if row.is_intrusion %}
+                <span class="badge bg-danger">Intrusion</span>
+              {% else %}
+                <span class="badge bg-success">Normal</span>
+              {% endif %}
+            </td>
+            <td>{{ row.confidence }}%</td>
+            <td><code class="text-dark">{{ row.protocol }}</code></td>
+            <td><code class="text-dark">{{ row.service }}</code></td>
+            <td><code class="text-dark">{{ row.flag }}</code></td>
+            <td>{{ row.src_bytes }}</td>
+            <td>{{ row.dst_bytes }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+{% endblock %}

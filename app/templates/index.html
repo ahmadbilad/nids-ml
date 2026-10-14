@@ -6,7 +6,7 @@
     <div class="col-lg-8">
       <p class="text-uppercase text-primary fw-semibold small mb-2">Network security · machine learning</p>
       <h1 class="display-5 fw-bold">Inspect network traffic for intrusions.</h1>
-      <p class="lead text-secondary mb-0">Submit a connection record to classify it as normal traffic or a potential intrusion.</p>
+      <p class="lead text-secondary mb-0">Classify single connection flows or ingest multi-record network traffic logs via batch upload.</p>
     </div>
     <div class="col-lg-4 text-lg-end">
       <a class="btn btn-outline-primary" href="{{ url_for('main.metrics') }}">View model performance</a>
@@ -14,11 +14,40 @@
   </div>
 </section>
 
+<!-- Batch File Ingestion Card -->
+<section class="card border-0 shadow-sm mb-4 mb-lg-5 border-start border-primary border-4">
+  <div class="card-body p-4 p-lg-4">
+    <div class="row align-items-center g-3">
+      <div class="col-lg-7">
+        <div class="d-flex align-items-center gap-2 mb-1">
+          <h2 class="h4 mb-0 fw-bold">Batch Log Analysis</h2>
+          <span class="badge bg-primary">Automated Ingestion</span>
+        </div>
+        <p class="text-secondary small mb-2">
+          Upload a structured CSV containing multi-connection network flows to evaluate traffic anomalies at scale (up to 500 records).
+        </p>
+        <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('main.download_sample_csv') }}">
+          Download Sample Batch CSV
+        </a>
+      </div>
+      <div class="col-lg-5">
+        <form method="post" action="{{ url_for('main.submit_batch') }}" enctype="multipart/form-data">
+          <div class="input-group">
+            <input type="file" name="file" class="form-control" accept=".csv" required>
+            <button class="btn btn-primary" type="submit">Analyze Batch</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Single Connection Record Manual Form -->
 <section class="card border-0 shadow-sm">
   <div class="card-body p-4 p-lg-5">
     <div class="mb-4">
-      <h2 class="h3 mb-2">Traffic record</h2>
-      <p class="text-secondary mb-0">Enter the 41 NSL-KDD connection features. All fields are required.</p>
+      <h2 class="h3 mb-2">Single traffic record</h2>
+      <p class="text-secondary mb-0">Enter the 41 NSL-KDD connection features manually. All fields are required.</p>
     </div>
     <form method="post" action="{{ url_for('main.submit_prediction') }}" id="prediction-form">
       <h3 class="h5 border-bottom pb-2 mb-3">Connection details</h3>
