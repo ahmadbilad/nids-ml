@@ -15,6 +15,7 @@
           <h1 class="h2 text-success">Normal traffic</h1>
           <p class="text-secondary">The submitted connection was classified as <strong>normal</strong>.</p>
         {% endif %}
+
         <div class="confidence-panel rounded-3 p-3 my-4">
           <div class="d-flex justify-content-between mb-2">
             <span class="fw-semibold">Prediction confidence</span>
@@ -24,7 +25,35 @@
             <div class="progress-bar" style="width: {{ result.confidence * 100 }}%"></div>
           </div>
         </div>
-        <a class="btn btn-primary" href="{{ url_for('main.index') }}">Analyze another record</a>
+
+        {% if result.explanations %}
+        <div class="text-start bg-light rounded-3 p-3 p-lg-4 my-4 border">
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <h2 class="h5 mb-0 fw-bold">Explainable AI (XAI) — Decision Rationale</h2>
+            <span class="badge bg-secondary">Tree SHAP</span>
+          </div>
+          <p class="small text-secondary mb-3">
+            Local feature attribution computed via Shapley Additive exPlanations. These are the top network flow parameters driving this decision:
+          </p>
+          <ul class="list-group list-group-flush rounded-2">
+            {% for item in result.explanations %}
+            <li class="list-group-item d-flex justify-content-between align-items-center bg-white px-3 py-2">
+              <div>
+                <span class="fw-semibold text-dark">{{ item.feature }}</span>
+                <span class="small d-block text-muted">{{ item.direction }}</span>
+              </div>
+              <span class="badge {% if item.impact > 0 %}bg-danger{% else %}bg-success{% endif %} rounded-pill font-monospace">
+                SHAP: {{ "%+.4f"|format(item.impact) }}
+              </span>
+            </li>
+            {% endfor %}
+          </ul>
+        </div>
+        {% endif %}
+
+        <div class="mt-3">
+          <a class="btn btn-primary" href="{{ url_for('main.index') }}">Analyze another record</a>
+        </div>
       </div>
     </div>
   </div>

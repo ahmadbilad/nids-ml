@@ -1,12 +1,13 @@
 """Dataset preparation, model training, and inference utilities."""
 
-from pathlib import Path
 import json
+from pathlib import Path
 
 import joblib
 import numpy as np
 import pandas as pd
 from scipy.sparse import hstack
+import shap
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (
@@ -167,6 +168,49 @@ def predict_with_artifacts(features, artifacts):
         ]
     )
     return predictions, confidence
+
+
+def explain_prediction(features, artifacts, top_k=3):
+    """Compute SHAP feature importance for a single prediction row."""
+    transformed = transform_features(
+        features, artifacts["scaler"], artifacts["encoder"]
+    )
+    model = artifacts["model"]
+    encoder = artifacts["encoder"]
+
+    # Match exact feature column ordering: encoded categoricals followed by numeric features
+    encoded_feature_names = list(encoder.get_feature_names_out(CATEGORICAL_COLUMNS))
+    all_feature_names = encoded_feature_names + NUMERIC_COLUMNS
+
+    explainer = shap.TreeExplainer(model)
+    # Convert sparse matrix to dense array for TreeExplainer compatibility
+    shap_values = explainer.shap_values(transformed.toarray())
+
+    # Extract Class 1 (intrusion) contributions
+    if isinstance(shap_values, list):
+        instance_shap = shap_values[1][0]
+    elif len(shap_values.shape) == 3:
+        instance_shap = shap_values[0, :, 1]
+    else:
+        instance_shap = shap_values[0]
+
+    # Rank features by contribution magnitude
+    top_indices = np.argsort(np.abs(instance_shap))[::-1][:top_k]
+
+    explanations = []
+    for idx in top_indices:
+        impact_val = float(instance_shap[idx])
+        explanations.append({
+            "feature": all_feature_names[idx].replace("_", " ").title(),
+            "impact": round(impact_val, 4),
+            "direction": (
+                "Pushed towards Intrusion"
+                if impact_val > 0
+                else "Pushed towards Normal"
+            ),
+        })
+
+    return explanations
 
 
 def evaluate_saved_model(test_path=DATA_DIR / "KDDTest+.txt", model_dir=MODEL_DIR):

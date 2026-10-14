@@ -22,6 +22,7 @@ from app.model_utils import (
     FEATURE_COLUMNS,
     NUMERIC_COLUMNS,
     evaluate_saved_model,
+    explain_prediction,
     predict_with_artifacts,
 )
 
@@ -78,14 +79,17 @@ def submit_prediction():
         return redirect(url_for("main.index"))
 
     features = pd.DataFrame([values], columns=FEATURE_COLUMNS)
-    predictions, confidences = predict_with_artifacts(
-        features, current_app.extensions["nids_artifacts"]
-    )
+    artifacts = current_app.extensions["nids_artifacts"]
+
+    predictions, confidences = predict_with_artifacts(features, artifacts)
+    explanations = explain_prediction(features, artifacts)
+
     prediction = int(predictions[0])
     session["prediction_result"] = {
         "class_id": prediction,
         "label": CLASS_NAMES[prediction],
         "confidence": float(confidences[0]),
+        "explanations": explanations,
     }
     return redirect(url_for("main.result"))
 

@@ -6,6 +6,7 @@ import pytest
 from app.model_utils import (
     DATA_DIR,
     MODEL_DIR,
+    explain_prediction,
     load_artifacts,
     load_dataset,
     predict,
@@ -53,3 +54,20 @@ def test_predict_classifies_normal_and_attack_samples(
     prediction = predict(sample, MODEL_DIR)
     assert prediction.shape == (1,)
     assert int(prediction[0]) == expected_class
+
+
+def test_explain_prediction_returns_top_features(test_records):
+    """Verify that Tree SHAP computes top-k explanations on a sample record."""
+    features, _ = test_records
+    artifacts = load_artifacts(MODEL_DIR)
+    sample = features.iloc[[0]]
+
+    explanations = explain_prediction(sample, artifacts, top_k=3)
+
+    assert len(explanations) == 3
+    for item in explanations:
+        assert "feature" in item
+        assert "impact" in item
+        assert "direction" in item
+        assert isinstance(item["impact"], float)
+        assert item["direction"] in ("Pushed towards Intrusion", "Pushed towards Normal")
