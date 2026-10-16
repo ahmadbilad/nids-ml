@@ -312,12 +312,23 @@ def train_models(
 
     artifact_dir = Path(artifact_dir)
     artifact_dir.mkdir(parents=True, exist_ok=True)
-    random_forest_metrics = metrics["random_forest"]
+    
+    # Store comparative report including all evaluated baselines
+    evaluation_payload = {
+        "primary_model": "random_forest",
+        "models": metrics,
+        "accuracy": metrics["random_forest"]["accuracy"],
+        "precision": metrics["random_forest"]["precision"],
+        "recall": metrics["random_forest"]["recall"],
+        "f1": metrics["random_forest"]["f1"],
+        "confusion_matrix": metrics["random_forest"]["confusion_matrix"],
+    }
+
     joblib.dump(classifiers["random_forest"], artifact_dir / "model.pkl")
     joblib.dump(scaler, artifact_dir / "scaler.pkl")
     joblib.dump(encoder, artifact_dir / "encoder.pkl")
     (artifact_dir / "metrics.json").write_text(
-        json.dumps(random_forest_metrics, indent=2) + "\n",
+        json.dumps(evaluation_payload, indent=2) + "\n",
         encoding="utf-8",
     )
     return metrics

@@ -5,52 +5,148 @@
 {% endblock %}
 {% block content %}
 <div class="mb-4">
-  <p class="text-uppercase text-primary fw-semibold small mb-2">Evaluation</p>
-  <h1 class="display-6 fw-bold">Model performance</h1>
-  <p class="lead text-secondary">Random Forest evaluation on the NSL-KDD test split.</p>
+  <p class="text-uppercase text-primary fw-semibold small mb-2">Empirical Evaluation & Benchmarks</p>
+  <h1 class="display-6 fw-bold">Model Performance & Trade-off Analysis</h1>
+  <p class="lead text-secondary">Evaluated on the out-of-sample NSL-KDD test split (KDDTest+).</p>
 </div>
+
 {% if error %}
   <div class="alert alert-danger" role="alert">{{ error }}</div>
 {% else %}
+  <!-- Primary Production Metrics -->
   <section class="row g-3 mb-4">
-    <div class="col-12 col-md-6">
-      <div class="metric-card h-100">
-        <p class="text-secondary mb-1">Accuracy</p>
-        <p class="display-6 fw-bold mb-0">{{ "%.1f"|format(report.accuracy * 100) }}%</p>
+    <div class="col-12 col-sm-6 col-lg-3">
+      <div class="metric-card h-100 p-3 shadow-sm bg-white rounded-3 border">
+        <p class="text-secondary small fw-semibold text-uppercase mb-1">Production Model</p>
+        <p class="h4 fw-bold mb-0 text-primary">Random Forest</p>
+        <span class="small text-muted">200 Estimators · Balanced</span>
       </div>
     </div>
-    <div class="col-12 col-md-6">
-      <div class="metric-card h-100">
-        <p class="text-secondary mb-1">F1-score</p>
-        <p class="display-6 fw-bold mb-0">{{ "%.3f"|format(report.f1) }}</p>
+    <div class="col-12 col-sm-6 col-lg-3">
+      <div class="metric-card h-100 p-3 shadow-sm bg-white rounded-3 border">
+        <p class="text-secondary small fw-semibold text-uppercase mb-1">Test Accuracy</p>
+        <p class="h4 fw-bold mb-0">{{ "%.1f"|format(report.accuracy * 100) }}%</p>
+        <span class="small text-muted">Overall classification rate</span>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-lg-3">
+      <div class="metric-card h-100 p-3 shadow-sm bg-white rounded-3 border">
+        <p class="text-secondary small fw-semibold text-uppercase mb-1">Precision (Attack)</p>
+        <p class="h4 fw-bold mb-0 text-success">{{ "%.1f"|format((report.precision if report.precision is defined else report.models.random_forest.precision) * 100) }}%</p>
+        <span class="small text-muted">Low false-positive alert rate</span>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-lg-3">
+      <div class="metric-card h-100 p-3 shadow-sm bg-white rounded-3 border">
+        <p class="text-secondary small fw-semibold text-uppercase mb-1">F1-Score</p>
+        <p class="h4 fw-bold mb-0 text-dark">{{ "%.3f"|format(report.f1) }}</p>
+        <span class="small text-muted">Harmonic mean (P & R)</span>
       </div>
     </div>
   </section>
+
+  <!-- Comparative Classifier Benchmark Table -->
+  {% if report.models %}
+  <section class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-white py-3 border-bottom">
+      <h2 class="h5 mb-1 fw-bold">Comparative Baseline Evaluation</h2>
+      <p class="text-secondary small mb-0">Empirical comparison between linear, tree-based, and ensemble architectures.</p>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Architecture</th>
+            <th>Type</th>
+            <th>Accuracy</th>
+            <th>Precision</th>
+            <th>Recall</th>
+            <th>F1-Score</th>
+            <th>Operational Role</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="fw-semibold">Logistic Regression</td>
+            <td><span class="badge bg-secondary">Linear</span></td>
+            <td>{{ "%.1f"|format(report.models.logistic_regression.accuracy * 100) }}%</td>
+            <td>{{ "%.1f"|format(report.models.logistic_regression.precision * 100) }}%</td>
+            <td>{{ "%.1f"|format(report.models.logistic_regression.recall * 100) }}%</td>
+            <td>{{ "%.3f"|format(report.models.logistic_regression.f1) }}</td>
+            <td class="small text-muted">Parametric baseline; fast inference</td>
+          </tr>
+          <tr>
+            <td class="fw-semibold">Decision Tree</td>
+            <td><span class="badge bg-secondary">Single Tree</span></td>
+            <td>{{ "%.1f"|format(report.models.decision_tree.accuracy * 100) }}%</td>
+            <td>{{ "%.1f"|format(report.models.decision_tree.precision * 100) }}%</td>
+            <td>{{ "%.1f"|format(report.models.decision_tree.recall * 100) }}%</td>
+            <td>{{ "%.3f"|format(report.models.decision_tree.f1) }}</td>
+            <td class="small text-muted">Non-linear; prone to high variance</td>
+          </tr>
+          <tr class="table-primary border-primary">
+            <td class="fw-bold">
+              Random Forest
+              <span class="badge bg-primary ms-1">Deployed</span>
+            </td>
+            <td><span class="badge bg-dark">Ensemble</span></td>
+            <td class="fw-bold">{{ "%.1f"|format(report.models.random_forest.accuracy * 100) }}%</td>
+            <td class="fw-bold text-success">{{ "%.1f"|format(report.models.random_forest.precision * 100) }}%</td>
+            <td class="fw-bold">{{ "%.1f"|format(report.models.random_forest.recall * 100) }}%</td>
+            <td class="fw-bold">{{ "%.3f"|format(report.models.random_forest.f1) }}</td>
+            <td class="small text-dark fw-semibold">Highest precision; suppresses false alarms in production</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+  {% endif %}
+
+  <!-- Confusion Matrix Section -->
   <section class="card border-0 shadow-sm">
     <div class="card-body p-4">
-      <h2 class="h4">Confusion matrix</h2>
-      <p class="text-secondary">Actual labels by predicted labels.</p>
-      <div class="chart-container">
-        <canvas id="confusion-chart" role="img" aria-label="Confusion matrix chart comparing actual normal and intrusion traffic against model predictions"></canvas>
-      </div>
-      <div class="table-responsive mt-4">
-        <table class="table table-bordered text-center align-middle mb-0">
-          <caption class="caption-top">Counts by actual and predicted class</caption>
-          <thead class="table-light">
-            <tr><th scope="col">Actual \ Predicted</th><th scope="col">Normal</th><th scope="col">Intrusion</th></tr>
-          </thead>
-          <tbody>
-            <tr><th scope="row">Normal</th><td>{{ report.confusion_matrix[0][0] }}</td><td>{{ report.confusion_matrix[0][1] }}</td></tr>
-            <tr><th scope="row">Intrusion</th><td>{{ report.confusion_matrix[1][0] }}</td><td>{{ report.confusion_matrix[1][1] }}</td></tr>
-          </tbody>
-        </table>
+      <h2 class="h5 fw-bold mb-1">Random Forest Confusion Matrix</h2>
+      <p class="text-secondary small mb-4">Actual test ground-truth versus model predictions.</p>
+      
+      <div class="row align-items-center g-4">
+        <div class="col-12 col-lg-7">
+          <div class="chart-container" style="position: relative; height: 280px;">
+            <canvas id="confusion-chart" role="img" aria-label="Confusion matrix chart comparing actual normal and intrusion traffic against model predictions"></canvas>
+          </div>
+        </div>
+        <div class="col-12 col-lg-5">
+          <div class="table-responsive">
+            <table class="table table-bordered text-center align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th scope="col" class="small">Actual \ Predicted</th>
+                  <th scope="col" class="small text-success">Normal</th>
+                  <th scope="col" class="small text-danger">Intrusion</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <th scope="row" class="table-light small">Normal</th>
+                  <td class="fw-bold text-success bg-light">{{ report.confusion_matrix[0][0] }}<div class="small text-muted fw-normal">True Negative</div></td>
+                  <td class="fw-bold text-danger">{{ report.confusion_matrix[0][1] }}<div class="small text-muted fw-normal">False Positive</div></td>
+                </tr>
+                <tr>
+                  <th scope="row" class="table-light small">Intrusion</th>
+                  <td class="fw-bold text-secondary">{{ report.confusion_matrix[1][0] }}<div class="small text-muted fw-normal">False Negative</div></td>
+                  <td class="fw-bold text-danger bg-light">{{ report.confusion_matrix[1][1] }}<div class="small text-muted fw-normal">True Positive</div></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
   </section>
 {% endif %}
 {% endblock %}
+
 {% block scripts %}
-{% if report %}
+{% if report and chart_data %}
 <script>
   const confusionData = {{ chart_data|tojson }};
   new Chart(document.getElementById("confusion-chart"), {
@@ -58,18 +154,27 @@
     data: {
       labels: confusionData.labels,
       datasets: [
-        { label: "Predicted normal", data: confusionData.matrix.map((row) => row[0]), backgroundColor: "#198754" },
-        { label: "Predicted intrusion", data: confusionData.matrix.map((row) => row[1]), backgroundColor: "#dc3545" }
+        { label: "Predicted Normal", data: confusionData.matrix.map((row) => row[0]), backgroundColor: "#198754" },
+        { label: "Predicted Intrusion", data: confusionData.matrix.map((row) => row[1]), backgroundColor: "#dc3545" }
       ]
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
       scales: {
-        x: { title: { display: true, text: "Actual class" } },
-        y: { beginAtZero: true, title: { display: true, text: "Number of records" } }
+        x: { title: { display: true, text: "Actual Class" } },
+        y: { beginAtZero: true, title: { display: true, text: "Record Count" } }
       },
-      plugins: { legend: { position: "bottom" } }
+      plugins: { 
+        legend: { position: "bottom" },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              return `${context.dataset.label}: ${context.raw.toLocaleString()} flows`;
+            }
+          }
+        }
+      }
     }
   });
 </script>
