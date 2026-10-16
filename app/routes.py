@@ -216,7 +216,7 @@ def result():
 
 @bp.get("/metrics")
 def metrics():
-    """Render test-split accuracy, F1, and the confusion matrix."""
+    """Render test-split accuracy, F1, baseline table, and confusion matrix."""
     metrics_path = Path(current_app.config["MODEL_DIR"]) / "metrics.json"
     if metrics_path.is_file():
         with metrics_path.open(encoding="utf-8") as handle:
@@ -245,6 +245,7 @@ def metrics():
             chart_data=None,
             error="The saved confusion matrix has an invalid format.",
         ), 500
+
     chart_data = {
         "labels": ["Normal", "Intrusion"],
         "matrix": matrix,
@@ -252,7 +253,7 @@ def metrics():
     return render_template(
         "metrics.html",
         report=report,
-        chart_data=json.dumps(chart_data),
+        chart_data=chart_data,
         error=None,
     )
 

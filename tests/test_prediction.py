@@ -116,3 +116,13 @@ def test_predict_batch_dataframe_validation(app):
     assert summary["total"] == 2
     assert len(records) == 2
     assert "is_intrusion" in records[0]
+
+
+def test_metrics_route_displays_benchmarks(client):
+    """Verify metrics dashboard renders baseline comparisons and metrics."""
+    response = client.get("/metrics")
+    assert response.status_code == 200
+    assert b"Comparative Baseline Evaluation" in response.data
+    assert b"Logistic Regression" in response.data
+    assert b"Decision Tree" in response.data
+    assert b"Random Forest" in response.data
