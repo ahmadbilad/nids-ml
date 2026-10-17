@@ -1,4 +1,4 @@
-# X-NIDS: Explainable Network Intrusion Detection System
+﻿# X-NIDS: Explainable Network Intrusion Detection System
 
 **Empirical Multi-Model Benchmarking, XAI Faithfulness Verification, and Live Flow Ingestion**
 
@@ -10,11 +10,12 @@
 [![Deployment](https://img.shields.io/badge/deployment-Railway%20(Production)-success.svg)](https://nids-ml-production.up.railway.app/)
 [![Paper PDF](https://img.shields.io/badge/Paper-PDF-red.svg)](RESEARCH_PAPER.pdf)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Paper PDF](https://img.shields.io/badge/Paper-PDF-red.svg)](RESEARCH_PAPER.pdf)
 
 > **Academic Disclaimer:** This repository contains an **experimental research prototype** designed to study interpretability faithfulness, threshold sensitivity, and feature representation in machine learning-based network intrusion detection. It is **not** an enterprise production intrusion prevention system (IPS) and should not be deployed inline without human analyst verification and robust transport-layer encryption proxies.
 
 **Live Demo:** [https://nids-ml-production.up.railway.app/](https://nids-ml-production.up.railway.app/)
-**Research Paper:** [docs/RESEARCH_PAPER.tex](docs/RESEARCH_PAPER.tex) -- full IEEE-format write-up of the methodology and results below
+**Research Paper:** [RESEARCH_PAPER.pdf](RESEARCH_PAPER.pdf) (Compiled PDF) | [RESEARCH_PAPER.tex](RESEARCH_PAPER.tex) (IEEE LaTeX Source)
 
 ---
 
