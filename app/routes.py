@@ -4,6 +4,7 @@ import io
 import json
 import math
 from pathlib import Path
+import tempfile
 
 import pandas as pd
 from flask import (
@@ -28,6 +29,7 @@ from app.model_utils import (
     predict_batch_dataframe,
     predict_with_artifacts,
 )
+from app.pcap_utils import extract_flows_from_pcap
 
 bp = Blueprint("main", __name__)
 FEATURE_LABELS = {
@@ -37,7 +39,7 @@ FEATURE_LABELS = {
 
 @bp.get("/")
 def index():
-    """Render the landing page and network traffic prediction form."""
+    """Render the landing page, single prediction form, and file upload cards."""
     encoder = current_app.extensions["nids_artifacts"]["encoder"]
     categories = {
         column: encoder.categories_[index].tolist()
@@ -121,28 +123,69 @@ def submit_batch():
     session["batch_result"] = {
         "summary": summary,
         "records": records,
+        "source": "Batch CSV",
+    }
+    return redirect(url_for("main.batch_result"))
+
+
+@bp.post("/predict-pcap")
+def submit_pcap():
+    """Extract flow features from an uploaded PCAP file and run inference."""
+    if "pcap_file" not in request.files:
+        flash("Please upload a PCAP file.", "danger")
+        return redirect(url_for("main.index"))
+
+    file = request.files["pcap_file"]
+    if not file.filename or not (
+        file.filename.endswith(".pcap") or file.filename.endswith(".pcapng")
+    ):
+        flash("Invalid file format. Please upload a .pcap or .pcapng file.", "danger")
+        return redirect(url_for("main.index"))
+
+    with tempfile.NamedTemporaryFile(suffix=".pcap", delete=False) as tmp:
+        file.save(tmp.name)
+        tmp_path = Path(tmp.name)
+
+    try:
+        df_flows = extract_flows_from_pcap(tmp_path)
+        artifacts = current_app.extensions["nids_artifacts"]
+        summary, records = predict_batch_dataframe(df_flows, artifacts)
+    except Exception as exc:
+        flash(f"PCAP Flow Extraction Error: {str(exc)}", "danger")
+        return redirect(url_for("main.index"))
+    finally:
+        if tmp_path.exists():
+            try:
+                tmp_path.unlink()
+            except OSError:
+                pass
+
+    session["batch_result"] = {
+        "summary": summary,
+        "records": records,
+        "source": "PCAP Replay",
     }
     return redirect(url_for("main.batch_result"))
 
 
 @bp.get("/batch-result")
 def batch_result():
-    """Render the results of the batch CSV analysis."""
+    """Render the results of the batch CSV analysis or PCAP replay."""
     batch_data = session.pop("batch_result", None)
     if not batch_data:
-        flash("Upload a CSV file to inspect batch results.", "info")
+        flash("Upload a CSV or PCAP file to inspect flow analysis.", "info")
         return redirect(url_for("main.index"))
     return render_template(
         "batch_result.html",
         summary=batch_data["summary"],
         records=batch_data["records"],
+        source=batch_data.get("source", "Batch Analysis"),
     )
 
 
 @bp.get("/download-sample-csv")
 def download_sample_csv():
     """Generate and return a sample CSV for reviewers and users to test batch mode."""
-    # Creates 3 test connection flows (Normal HTTP, DoS SYN Flood, Normal SMTP)
     sample_data = [
         {
             "duration": 0, "protocol_type": "tcp", "service": "http", "flag": "SF",
@@ -216,45 +259,67 @@ def result():
 
 @bp.get("/metrics")
 def metrics():
-    """Render test-split accuracy, F1, baseline table, and confusion matrix."""
-    metrics_path = Path(current_app.config["MODEL_DIR"]) / "metrics.json"
+    """Render test metrics, cross-validation, CIC-IDS2017, and XAI faithfulness benchmark."""
+    model_dir = Path(current_app.config["MODEL_DIR"])
+    metrics_path = model_dir / "metrics.json"
+    cv_path = model_dir / "cv_metrics.json"
+    cic_path = model_dir / "cic_ids2017_metrics.json"
+    xai_path = model_dir / "xai_metrics.json"
+
+    report = None
+    cv_report = None
+    cic_report = None
+    xai_report = None
+    error = None
+
     if metrics_path.is_file():
-        with metrics_path.open(encoding="utf-8") as handle:
-            report = json.load(handle)
+        try:
+            with metrics_path.open(encoding="utf-8") as handle:
+                report = json.load(handle)
+        except Exception as exc:
+            error = f"Error reading metrics artifact: {exc}"
     else:
         test_path = Path(current_app.config["DATA_DIR"]) / "KDDTest+.txt"
         if not test_path.is_file():
             return render_template(
                 "metrics.html",
                 report=None,
-                chart_data=None,
+                cv_report=None,
+                cic_report=None,
+                xai_report=None,
                 error="Evaluation metrics are unavailable. Provide the NSL-KDD "
                 "test file or regenerate model/metrics.json during training.",
             ), 503
         report = evaluate_saved_model(test_path, current_app.config["MODEL_DIR"])
 
-    matrix = report.get("confusion_matrix")
-    if (
-        not isinstance(matrix, list)
-        or len(matrix) != 2
-        or any(not isinstance(row, list) or len(row) != 2 for row in matrix)
-    ):
-        return render_template(
-            "metrics.html",
-            report=None,
-            chart_data=None,
-            error="The saved confusion matrix has an invalid format.",
-        ), 500
+    if cv_path.is_file():
+        try:
+            with cv_path.open(encoding="utf-8") as handle:
+                cv_report = json.load(handle)
+        except Exception:
+            cv_report = None
 
-    chart_data = {
-        "labels": ["Normal", "Intrusion"],
-        "matrix": matrix,
-    }
+    if cic_path.is_file():
+        try:
+            with cic_path.open(encoding="utf-8") as handle:
+                cic_report = json.load(handle)
+        except Exception:
+            cic_report = None
+
+    if xai_path.is_file():
+        try:
+            with xai_path.open(encoding="utf-8") as handle:
+                xai_report = json.load(handle)
+        except Exception:
+            xai_report = None
+
     return render_template(
         "metrics.html",
         report=report,
-        chart_data=chart_data,
-        error=None,
+        cv_report=cv_report,
+        cic_report=cic_report,
+        xai_report=xai_report,
+        error=error,
     )
 
 

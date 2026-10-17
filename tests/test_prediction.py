@@ -107,7 +107,6 @@ def test_predict_batch_dataframe_validation(app):
     """Verify batch prediction helper validates columns and returns summary."""
     artifacts = app.extensions["nids_artifacts"]
 
-    # Construct a valid dummy batch containing all expected features
     dummy_row = {col: 0.0 for col in FEATURE_COLUMNS}
     dummy_row.update({"protocol_type": "tcp", "service": "http", "flag": "SF"})
     df = pd.DataFrame([dummy_row, dummy_row])
@@ -119,10 +118,15 @@ def test_predict_batch_dataframe_validation(app):
 
 
 def test_metrics_route_displays_benchmarks(client):
-    """Verify metrics dashboard renders baseline comparisons and metrics."""
+    """Verify metrics dashboard renders baseline comparisons, attack recall, threshold curves, 5-fold CV, and CIC-IDS2017."""
     response = client.get("/metrics")
     assert response.status_code == 200
-    assert b"Comparative Baseline Evaluation" in response.data
+    assert b"Out-of-Sample Test Split Evaluation" in response.data
+    assert b"Modern Dataset Evaluation: CIC-IDS2017 Flow Benchmark" in response.data
+    assert b"5-Fold Stratified Cross-Validation Benchmark" in response.data
     assert b"Logistic Regression" in response.data
     assert b"Decision Tree" in response.data
     assert b"Random Forest" in response.data
+    assert b"XGBoost" in response.data
+    assert b"Granular Threat Family Recall Breakdown" in response.data
+    assert b"Operational Threshold Calibration" in response.data

@@ -19,6 +19,7 @@ from sklearn.metrics import (
 )
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sklearn.tree import DecisionTreeClassifier
+from xgboost import XGBClassifier
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = PROJECT_ROOT / "data"
@@ -76,8 +77,54 @@ DIFFICULTY_COLUMN = "difficulty"
 DATASET_COLUMNS = FEATURE_COLUMNS + [TARGET_COLUMN, DIFFICULTY_COLUMN]
 CLASS_NAMES = {0: "normal", 1: "intrusion"}
 
+ATTACK_MAPPING = {
+    # DoS
+    "neptune": "DoS",
+    "back": "DoS",
+    "land": "DoS",
+    "pod": "DoS",
+    "smurf": "DoS",
+    "teardrop": "DoS",
+    "mailbomb": "DoS",
+    "apache2": "DoS",
+    "processtable": "DoS",
+    "udpstorm": "DoS",
+    # Probe
+    "ipsweep": "Probe",
+    "nmap": "Probe",
+    "portsweep": "Probe",
+    "satan": "Probe",
+    "mscan": "Probe",
+    "saint": "Probe",
+    # R2L
+    "ftp_write": "R2L",
+    "guess_passwd": "R2L",
+    "imap": "R2L",
+    "multihop": "R2L",
+    "phf": "R2L",
+    "spy": "R2L",
+    "warezclient": "R2L",
+    "warezmaster": "R2L",
+    "sendmail": "R2L",
+    "named": "R2L",
+    "snmpgetattack": "R2L",
+    "snmpguess": "R2L",
+    "xlock": "R2L",
+    "xsnoop": "R2L",
+    "worm": "R2L",
+    # U2R
+    "buffer_overflow": "U2R",
+    "loadmodule": "U2R",
+    "perl": "U2R",
+    "rootkit": "U2R",
+    "httptunnel": "U2R",
+    "ps": "U2R",
+    "sqlattack": "U2R",
+    "xterm": "U2R",
+}
 
-def load_dataset(path):
+
+def load_dataset(path, return_attack_types=False):
     """Load an NSL-KDD file and return its 41 features and binary target."""
     dataset = pd.read_csv(
         path,
@@ -94,8 +141,8 @@ def load_dataset(path):
     if dataset.empty:
         raise ValueError(f"{path} contains no dataset rows.")
 
-    labels = dataset[TARGET_COLUMN].astype(str).str.strip().str.rstrip(".")
-    if labels.eq("").any():
+    raw_labels = dataset[TARGET_COLUMN].astype(str).str.strip().str.rstrip(".").str.lower()
+    if raw_labels.eq("").any():
         raise ValueError(f"{path} contains empty target labels.")
 
     features = dataset[FEATURE_COLUMNS].copy()
@@ -104,7 +151,12 @@ def load_dataset(path):
     for column in CATEGORICAL_COLUMNS:
         features[column] = features[column].astype(str).str.strip()
 
-    targets = (labels != "normal").astype(np.int8)
+    targets = (raw_labels != "normal").astype(np.int8)
+
+    if return_attack_types:
+        attack_types = raw_labels.map(lambda x: ATTACK_MAPPING.get(x, "Normal" if x == "normal" else "Other"))
+        return features, targets, attack_types
+
     return features, targets
 
 
@@ -123,13 +175,67 @@ def transform_features(features, scaler, encoder):
 
 def _classification_metrics(expected, predicted):
     matrix = confusion_matrix(expected, predicted, labels=[0, 1])
+    tn, fp, fn, tp = int(matrix[0][0]), int(matrix[0][1]), int(matrix[1][0]), int(matrix[1][1])
     return {
         "accuracy": float(accuracy_score(expected, predicted)),
         "precision": float(precision_score(expected, predicted, zero_division=0)),
         "recall": float(recall_score(expected, predicted, zero_division=0)),
         "f1": float(f1_score(expected, predicted, zero_division=0)),
         "confusion_matrix": matrix.tolist(),
+        "true_negatives": tn,
+        "false_positives": fp,
+        "false_negatives": fn,
+        "true_positives": tp,
     }
+
+
+def compute_per_attack_recall(targets, predictions, attack_types):
+    """Calculate recall metrics partitioned by attack category."""
+    classes = ["DoS", "Probe", "R2L", "U2R"]
+    breakdown = {}
+    targets_np = np.asarray(targets)
+    predictions_np = np.asarray(predictions)
+    attack_series = pd.Series(attack_types).reset_index(drop=True)
+
+    for cat in classes:
+        indices = np.where(attack_series == cat)[0]
+        total = int(len(indices))
+        if total > 0:
+            detected = int(np.sum(predictions_np[indices] == 1))
+            recall = float(detected / total)
+        else:
+            detected = 0
+            recall = 0.0
+        breakdown[cat] = {
+            "total": total,
+            "detected": detected,
+            "missed": total - detected,
+            "recall": recall,
+        }
+    return breakdown
+
+
+def compute_threshold_curve(targets, probas, step=0.05):
+    """Evaluate precision, recall, and false negative counts across threshold cuts."""
+    targets_np = np.asarray(targets)
+    thresholds = np.arange(0.1, 0.95, step)
+    curve_data = []
+
+    for t in thresholds:
+        preds = (probas >= t).astype(int)
+        tn, fp, fn, tp = confusion_matrix(targets_np, preds, labels=[0, 1]).ravel()
+        p = precision_score(targets_np, preds, zero_division=0)
+        r = recall_score(targets_np, preds, zero_division=0)
+        f1 = f1_score(targets_np, preds, zero_division=0)
+        curve_data.append({
+            "threshold": round(float(t), 2),
+            "precision": round(float(p), 4),
+            "recall": round(float(r), 4),
+            "f1": round(float(f1), 4),
+            "false_negatives": int(fn),
+            "false_positives": int(fp),
+        })
+    return curve_data
 
 
 def load_artifacts(model_dir=MODEL_DIR):
@@ -150,17 +256,20 @@ def load_artifacts(model_dir=MODEL_DIR):
     return artifacts
 
 
-def predict_with_artifacts(features, artifacts):
-    """Predict binary classes and per-row confidence from loaded artifacts."""
+def predict_with_artifacts(features, artifacts, threshold=0.5):
+    """Predict binary classes and per-row confidence from loaded artifacts with adjustable threshold."""
     transformed = transform_features(
         features, artifacts["scaler"], artifacts["encoder"]
     )
     model = artifacts["model"]
-    predictions = model.predict(transformed)
     probabilities = model.predict_proba(transformed)
     class_indexes = {
         class_label: index for index, class_label in enumerate(model.classes_)
     }
+    intrusion_index = class_indexes[1]
+    intrusion_probs = probabilities[:, intrusion_index]
+    predictions = (intrusion_probs >= threshold).astype(int)
+
     confidence = np.array(
         [
             probabilities[row_index, class_indexes[prediction]]
@@ -209,7 +318,7 @@ def explain_prediction(features, artifacts, top_k=3):
     return explanations
 
 
-def predict_batch_dataframe(df, artifacts, max_rows=500):
+def predict_batch_dataframe(df, artifacts, max_rows=500, threshold=0.5):
     """Validate, preprocess, and predict a batch DataFrame."""
     if len(df) > max_rows:
         df = df.iloc[:max_rows].copy()
@@ -226,7 +335,7 @@ def predict_batch_dataframe(df, artifacts, max_rows=500):
     for col in CATEGORICAL_COLUMNS:
         features[col] = features[col].astype(str).str.strip()
 
-    predictions, confidences = predict_with_artifacts(features, artifacts)
+    predictions, confidences = predict_with_artifacts(features, artifacts, threshold=threshold)
 
     total_samples = len(predictions)
     intrusions = int(np.sum(predictions == 1))
@@ -273,9 +382,11 @@ def train_models(
     test_path=DATA_DIR / "KDDTest+.txt",
     artifact_dir=MODEL_DIR,
 ):
-    """Train baseline classifiers and Random Forest, then save the RF artifacts."""
+    """Train baseline classifiers, XGBoost, compute attack-category recall, and save RF artifacts."""
     train_features, train_targets = load_dataset(train_path)
-    test_features, test_targets = load_dataset(test_path)
+    test_features, test_targets, test_attack_types = load_dataset(
+        test_path, return_attack_types=True
+    )
 
     encoder = OneHotEncoder(handle_unknown="ignore", sparse_output=True)
     scaler = StandardScaler()
@@ -301,7 +412,16 @@ def train_models(
             n_jobs=-1,
             random_state=42,
         ),
+        "xgboost": XGBClassifier(
+            n_estimators=200,
+            learning_rate=0.1,
+            max_depth=6,
+            eval_metric="logloss",
+            random_state=42,
+            n_jobs=-1,
+        ),
     }
+
     metrics = {}
     for name, classifier in classifiers.items():
         classifier.fit(encoded_train, train_targets)
@@ -310,10 +430,25 @@ def train_models(
         )
         print(f"{name}: {metrics[name]}")
 
+    rf_model = classifiers["random_forest"]
+    rf_probas = rf_model.predict_proba(encoded_test)[:, 1]
+    rf_preds_default = rf_model.predict(encoded_test)
+
+    per_attack_recall = compute_per_attack_recall(
+        test_targets, rf_preds_default, test_attack_types
+    )
+    threshold_curve = compute_threshold_curve(test_targets, rf_probas, step=0.05)
+
+    tuned_threshold = 0.35
+    rf_preds_tuned = (rf_probas >= tuned_threshold).astype(int)
+    tuned_metrics = _classification_metrics(test_targets, rf_preds_tuned)
+    tuned_attack_recall = compute_per_attack_recall(
+        test_targets, rf_preds_tuned, test_attack_types
+    )
+
     artifact_dir = Path(artifact_dir)
     artifact_dir.mkdir(parents=True, exist_ok=True)
-    
-    # Store comparative report including all evaluated baselines
+
     evaluation_payload = {
         "primary_model": "random_forest",
         "models": metrics,
@@ -322,6 +457,15 @@ def train_models(
         "recall": metrics["random_forest"]["recall"],
         "f1": metrics["random_forest"]["f1"],
         "confusion_matrix": metrics["random_forest"]["confusion_matrix"],
+        "false_negatives": metrics["random_forest"]["false_negatives"],
+        "false_positives": metrics["random_forest"]["false_positives"],
+        "per_attack_recall": per_attack_recall,
+        "threshold_curve": threshold_curve,
+        "tuned_evaluation": {
+            "threshold": tuned_threshold,
+            "metrics": tuned_metrics,
+            "per_attack_recall": tuned_attack_recall,
+        },
     }
 
     joblib.dump(classifiers["random_forest"], artifact_dir / "model.pkl")

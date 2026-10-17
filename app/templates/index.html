@@ -6,7 +6,7 @@
     <div class="col-lg-8">
       <p class="text-uppercase text-primary fw-semibold small mb-2">Network security · machine learning</p>
       <h1 class="display-5 fw-bold">Inspect network traffic for intrusions.</h1>
-      <p class="lead text-secondary mb-0">Classify single connection flows or ingest multi-record network traffic logs via batch upload.</p>
+      <p class="lead text-secondary mb-0">Classify single connection flows, ingest multi-record network traffic logs via CSV, or replay raw PCAP capture files.</p>
     </div>
     <div class="col-lg-4 text-lg-end">
       <a class="btn btn-outline-primary" href="{{ url_for('main.metrics') }}">View model performance</a>
@@ -14,33 +14,62 @@
   </div>
 </section>
 
-<!-- Batch File Ingestion Card -->
-<section class="card border-0 shadow-sm mb-4 mb-lg-5 border-start border-primary border-4">
-  <div class="card-body p-4 p-lg-4">
-    <div class="row align-items-center g-3">
-      <div class="col-lg-7">
-        <div class="d-flex align-items-center gap-2 mb-1">
-          <h2 class="h4 mb-0 fw-bold">Batch Log Analysis</h2>
-          <span class="badge bg-primary">Automated Ingestion</span>
-        </div>
-        <p class="text-secondary small mb-2">
-          Upload a structured CSV containing multi-connection network flows to evaluate traffic anomalies at scale (up to 500 records).
-        </p>
-        <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('main.download_sample_csv') }}">
-          Download Sample Batch CSV
-        </a>
-      </div>
-      <div class="col-lg-5">
-        <form method="post" action="{{ url_for('main.submit_batch') }}" enctype="multipart/form-data">
-          <div class="input-group">
-            <input type="file" name="file" class="form-control" accept=".csv" required>
-            <button class="btn btn-primary" type="submit">Analyze Batch</button>
+<!-- Dual Ingestion Row: Batch CSV & Raw PCAP Replay -->
+<div class="row g-4 mb-4 mb-lg-5">
+  <!-- Batch CSV Ingestion Card -->
+  <div class="col-lg-6">
+    <div class="card border-0 shadow-sm h-100 border-start border-primary border-4">
+      <div class="card-body p-4 d-flex flex-column justify-content-between">
+        <div>
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <h2 class="h5 mb-0 fw-bold">Batch Log Analysis</h2>
+            <span class="badge bg-primary">CSV Telemetry</span>
           </div>
-        </form>
+          <p class="text-secondary small mb-3">
+            Upload a structured CSV containing multi-connection network flows to evaluate traffic anomalies at scale (up to 500 records).
+          </p>
+        </div>
+        <div>
+          <form method="post" action="{{ url_for('main.submit_batch') }}" enctype="multipart/form-data" class="mb-3">
+            <div class="input-group">
+              <input type="file" name="file" class="form-control" accept=".csv" required>
+              <button class="btn btn-primary" type="submit">Analyze Batch</button>
+            </div>
+          </form>
+          <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('main.download_sample_csv') }}">
+            Download Sample Batch CSV
+          </a>
+        </div>
       </div>
     </div>
   </div>
-</section>
+
+  <!-- Raw PCAP Capture Replay Card -->
+  <div class="col-lg-6">
+    <div class="card border-0 shadow-sm h-100 border-start border-danger border-4">
+      <div class="card-body p-4 d-flex flex-column justify-content-between">
+        <div>
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <h2 class="h5 mb-0 fw-bold">PCAP Traffic Replay</h2>
+            <span class="badge bg-danger">Raw Packet Ingestion</span>
+          </div>
+          <p class="text-secondary small mb-3">
+            Upload raw packet capture dumps (<code>.pcap</code>, <code>.pcapng</code>). Aggregates packet streams into bidirectional 5-tuple IP flows and extracts statistical features in real time.
+          </p>
+        </div>
+        <div>
+          <form method="post" action="{{ url_for('main.submit_pcap') }}" enctype="multipart/form-data" class="mb-3">
+            <div class="input-group">
+              <input type="file" name="pcap_file" class="form-control" accept=".pcap,.pcapng" required>
+              <button class="btn btn-danger" type="submit">Replay PCAP</button>
+            </div>
+          </form>
+          <span class="text-muted small">Sample PCAP: <code>data/sample_traffic.pcap</code></span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- Single Connection Record Manual Form -->
 <section class="card border-0 shadow-sm">
