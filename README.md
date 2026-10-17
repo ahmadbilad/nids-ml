@@ -8,6 +8,7 @@
 ![Explainability](https://img.shields.io/badge/XAI-Tree%20SHAP%20%7C%20LIME-purple.svg)
 ![Tests](https://img.shields.io/badge/tests-10%20passed-brightgreen.svg)
 [![Deployment](https://img.shields.io/badge/deployment-Railway%20(Production)-success.svg)](https://nids-ml-production.up.railway.app/)
+[![Paper PDF](https://img.shields.io/badge/Paper-PDF-red.svg)](RESEARCH_PAPER.pdf)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 > **Academic Disclaimer:** This repository contains an **experimental research prototype** designed to study interpretability faithfulness, threshold sensitivity, and feature representation in machine learning-based network intrusion detection. It is **not** an enterprise production intrusion prevention system (IPS) and should not be deployed inline without human analyst verification and robust transport-layer encryption proxies.
